@@ -1,6 +1,6 @@
 (function(){
 	var utils = {
-		ajax: function(url,callback){
+		ajax: function(url, callback, aysnc){
 			var XHR = (function(){
 				try{
 					if(window.XMLHttpRequest){
@@ -12,14 +12,14 @@
 			})();
 
 			var url = url;
-			XHR.open("get", url, true);
+			XHR.open("get", url, aysnc || true);
 			XHR.setRequestHeader('Content-Type','application/x-www-form-urlencoded; charset=UTF-8');
 			XHR.onreadystatechange = function(){
 				if(XHR.readyState == 4 && XHR.status == 200){
 					// var ret = eval("(" + XHR.responseText + ")");
 					// var ret = new Function("return " + XHR.responseText )();
 					// extension中不能使用eval，new Function等方法
-					callback( unescape( XHR.responseText.replace(/\\/ig, '%') ) ); 
+					callback( unescape( XHR.responseText.replace(/\\/ig, '%') ) );
 				}
 			}
 			XHR.send(null);

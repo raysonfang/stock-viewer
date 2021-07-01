@@ -25,7 +25,7 @@
 				var icon = confIcons.shift();
 				html.push('<a href="#" class="icon" data-id="' + icon + '"><img src="images/icons/' + icon + '.png"/></a>');
 			}
-			$('#setting .iconlist').html(html.join(""));			
+			$('#setting .iconlist').html(html.join(""));
 		}
 		var bindEvent = function(){
 			$('.setting').on('click', function(e){
@@ -84,8 +84,9 @@
 	})();
 
 
-	var baseSugUrl = 'http://smartbox.gtimg.cn/s3/?t=all';
-	var localBaseSugUrl = localStorage.getItem('stock_sugUrl');
+	var baseSugUrl = 'https://smartbox.gtimg.cn/s3/?v=2&t=all';
+	//var localBaseSugUrl = localStorage.getItem('stock_sugUrl');
+    var localBaseSugUrl = "";
 	if(localBaseSugUrl && localBaseSugUrl != 'undefined'){
 		baseSugUrl = localBaseSugUrl;
 	}
@@ -110,12 +111,11 @@
 				pinyin : arr[3],
 				type : arr[4]
 			}
-			console.log(queryObj);
 			Stock.addStock(queryObj);
 		},
 		isCache : false
 	});
 	window.TYPE = "financeQQ";
-	
+
 })(jQuery);
 

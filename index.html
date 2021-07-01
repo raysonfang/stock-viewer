@@ -120,7 +120,7 @@
 </style>
 <style type="text/css">
 	body{
-		width:500px;
+		width:650px;
 		height:400px;
 	}
 	.sug .sug-item{
@@ -241,9 +241,11 @@
 	.zxg-stock .price{width:70px;}
 	.zxg-stock .grow{width:70px;}
 	.zxg-stock .hands{width:70px;}
+	.zxg-stock .news{width:70px;}
+	.zxg-stock .priceRemainder{width:70px;}
 	.zxg-stock .delete{
 		width:45px;
-	}	
+	}
 	.zxg-stock .zxg-list .remark,
 	.zxg-stock .zxg-list .delete,
 	.zxg-stock .zxg-list .remarked{
@@ -440,7 +442,7 @@
 		margin-top:0;
 		background:none;
 	}
-	
+
 	.zxg-list .ui-state-highlight{
 		background:none;
 		border:1px solid #fed22f;
@@ -449,6 +451,106 @@
 		background-color:rgb(255, 255, 255);
 		border:dotted 1px red;
 	}
+
+	.news-form{
+		display:none;
+		position:absolute;
+		top:40%;
+		left:20%;
+		z-index:200;
+		width:600px;
+		height:300px;
+		margin-left:-110px;
+		margin-top:-100px;
+		border:solid 1px #333;
+		background:white;
+
+		border-radius:5px;
+	}
+	.news-form .news-hd{
+		height: 30px;
+		border-bottom: solid 1px #166;
+		line-height: 30px;
+		padding: 5px;
+	}
+	.news-form .news-bd{
+		position:relative;
+		height:250px;
+		overflow-y:scroll;
+	}
+	.news-form textarea{
+		width:250px;
+		height:80px;
+		margin:10px 25px;
+	}
+	.news-form .btn{
+		width: 100px;
+		height: 40px;
+		text-align: center;
+		font-size: 24px;
+		border-radius:5px;
+		background:#666;
+		cursor:pointer;
+		color:white;
+		margin-left:100px;
+	}
+	.news-form .close{
+		position:absolute;
+		top:0;
+		right:0;
+		width:20px;
+		height:20px;
+		font-size:16px;
+		cursor:pointer;
+	}
+
+	.priceRemainder-form{
+		display:none;
+		position:absolute;
+		top:50%;
+		left:50%;
+		z-index:200;
+		width:300px;
+		height:200px;
+		margin-left:-150px;
+		margin-top:-100px;
+		border:solid 1px #333;
+		background:white;
+
+		border-radius:5px;
+	}
+	.priceRemainder-form .priceRemainder-hd{
+		height: 30px;
+		border-bottom: solid 1px #166;
+		line-height: 30px;
+		padding: 5px;
+	}
+	.priceRemainder-form .priceRemainder-content{
+		width:250px;
+		height:80px;
+		margin:10px 25px;
+	}
+	.priceRemainder-form .btn{
+		width: 100px;
+		height: 40px;
+		text-align: center;
+		font-size: 24px;
+		border-radius:5px;
+		background:#666;
+		cursor:pointer;
+		color:white;
+		margin-left:100px;
+	}
+	.priceRemainder-form .close{
+		position:absolute;
+		top:0;
+		right:0;
+		width:20px;
+		height:20px;
+		font-size:16px;
+		cursor:pointer;
+	}
+
 
 	.remark-form{
 		display:none;
@@ -590,7 +692,7 @@
 		}
 	}
 
-	#importexport_code { 
+	#importexport_code {
 		width: 100%;
 		font-family: monospace;
 		font-size: 0.5em;
@@ -622,6 +724,7 @@
 			<li class="tab on" data-type="default"><a href="#">我的自选</a></li>
 			<li class="tab"><a href="#" class="setting">个人设置</a></li>
 			<li class="tab"><a href="#" class="importexport">导出导入</a></li>
+			<li class="tab"><a href="#" class="priceRemainder">股价提醒</a></li>
 		</ul>
 		<div class="tab-content">
 			<div class="tab-pane on">
@@ -644,16 +747,18 @@
 							<span class="price">最新价</span>
 							<span class="grow">涨跌幅</span>
 							<span class="hands">换手率</span>
+							<span class="news">新闻公告</span>
+							<span class="priceRemainder">目标价位</span>
 							<span class="remark">备注</span>
 							<span class="delete">删除</span>
 						</div>
 						<div class="zxg-bd">
 							<ul class="zxg-list">
-							</ul>							
+							</ul>
 						</div>
 						<div class="tipStock"><span class="ok"></span>列表保存已成功</div>
 					</div>
-				</div>				
+				</div>
 			</div>
 			<div class="tab-pane">
 				<ul class="stockList">
@@ -662,16 +767,62 @@
 						<span class="rating">推荐星级</span>
 						<span class="type">类型</span>
 						<span class="topic">概念</span>
-					</li>					
+					</li>
 				</ul>
 			</div>
 			<div class="tab-pane">
 				<ul class="weixin" id="weixin">
-					
-				</ul>			
+
+				</ul>
 			</div>
 		</div>
+		<div class="tab-body">
+			<div>大盘指数</div>
+			<div>行业/板块指数</div>
+		</div>
+		<!-- 新闻公告 -->
+		<div class="news-form">
+			<div class="news-hd">
+				<span class="name"></span>(新闻公告) 当前股价:<span class="price"></span>
+				<span class="close">X</span>
+			</div>
+			<div class="news-bd">
+				<div class="news-list-bd">
+					<div class="title">
+						<span>个股新闻</span><span>查看更多</span>
+					</div>
+					<div>
+						<ul class="newsList" id="newsList">
 
+						</ul>
+					</div>
+				</div>
+				<div class="news-list-bd">
+					<div class="title">
+						<span>个股公告</span><span>查看更多</span>
+					</div>
+					<div>
+						<ul class="newsList" id="noticesList">
+
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="priceRemainder-form">
+			<div class="priceRemainder-hd">
+				<span class="name"></span>(<span class="code"></span>) 当前股价:<span class="price"></span>
+				<span class="close">X</span>
+			</div>
+			<div class="priceRemainder-bd">
+				<div class="priceRemainder-content">
+					<div><span>买入价：</span><input type="text" id="lowPrice" placeholder="请输入您的买入目标价位..." value=""  /></div>
+					<div><span>卖出价：</span><input type="text" id="highPrice" placeholder="请输入您的卖出目标价位..." value=""  /></div>
+				</div>
+				<input type="hidden" id="priceRemainder-key" value="">
+				<input type="button" class="btn" value="提交">
+			</div>
+		</div>
 		<div class="remark-form">
 			<div class="remark-hd">
 				<span class="name"></span>(<span class="code"></span>) 当前股价:<span class="price"></span>
@@ -685,6 +836,7 @@
 		</div>
 		<div class="mask"></div>
 		<div id="warning" ></div>
+
 	</body>
 	<script src="jquery_1102.js"></script>
 	<script src="jquery-ui.js"></script>

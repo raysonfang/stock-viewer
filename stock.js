@@ -36,7 +36,12 @@
 		}
 		sync2Local();
 	}
-	/* 排序 */ 
+	/* 价格提醒 */
+	var editItemPriceRemainder = function (obj) {
+		data.map[obj.key]['priceRemainder'] = obj.priceRemainder;
+		sync2Local();
+	}
+	/* 排序 */
 	var sortItem = function(queue){
 		if($.isArray(queue)){
 			if(queue.join("") == data.order.join("")){
@@ -88,7 +93,13 @@
 			if(obj.key && obj.remark != undefined){
 				editItem(obj);
 			}
-			cb && cb();			
+			cb && cb();
+		},
+		editPriceRemainder: function(obj, cb) {
+			if(obj.key && obj.priceRemainder != undefined){
+				editItemPriceRemainder(obj);
+			}
+			cb && cb();
 		},
 		getAll : function(cb){
 			var res = [];
@@ -116,7 +127,7 @@
 		},
 		sort : function(queue,cb){
 			var sort = sortItem(queue);
-			
+
 			if(sort){
 				cb && cb();
 			}
@@ -144,9 +155,17 @@ function getLinkUrl(obj){
 						'<span class="price">--</span>',
 						'<span class="grow">--</span>',
 						'<span class="hands">--</span>',
+						'<span class="news"><a href="#">点击查看</a></span>',
+						'<span class="priceRemainder" title="{lowPrice}--{highPrice}"><a href="#">{lowPrice}--{highPrice}</a></span>',
 						'<span class="remark {remarkFlag}" title="{remark}">加备注</span>',
 						'<a href="#" class="delete" data-key="{key}">X</a>',
-					'</li>'].join("");	
+					'</li>'].join("");
+	// 新闻公告模板
+	var newsList = ['<li id="{key}">',
+		'<span class="title"><a target="_blank" href="{url}">{title}</a></span><span class="time">{time}</span>',
+		'</li>'
+	].join("");
+
 	var Stock = {
 		name : LocalData.name,
 		timerSort : null,
@@ -160,6 +179,10 @@ function getLinkUrl(obj){
 				itemObj.code = item.key.slice(2);
 				itemObj.remarkFlag = item.remark ? "remarked" : "";
 				itemObj.url = getLinkUrl(itemObj).linkUrl;
+				if(item.priceRemainder) {
+					itemObj.lowPrice = item.priceRemainder.lowPrice;
+					itemObj.highPrice = item.priceRemainder.highPrice;
+				}
 				sHtml += utils.tmpl(sTplList,itemObj);
 			});
 			return sHtml;
@@ -178,13 +201,13 @@ function getLinkUrl(obj){
 				// var ret = new Function('return ' + res)();
 				var arrRet = res.trim().split(";");
 				var obj = {};
-				arrRet.forEach(function(item, index){ 
+				arrRet.forEach(function(item, index){
 					var arr = item.trim().split("="); // trim是要把回车干掉
 					if(arr.length > 1){
 						obj[arr[0]] = arr[1].replace('"','');
 					}
-				})	
-				
+				})
+
 				var data = {};
 				for(var key in obj){
 					var arr = obj[key].split("~");
@@ -201,7 +224,7 @@ function getLinkUrl(obj){
 						temp.price = "停牌";
 						temp.growRate = '--';
 						temp.hands = '--';
-					} 
+					}
 					if(parseFloat(temp.growRate) > 0){
 						temp.className = 'increase';
 					}else if(parseFloat(temp.growRate) < 0){
@@ -213,6 +236,32 @@ function getLinkUrl(obj){
 				callback(data);
 			})
 		},
+		_loadStockNewsData: function(key, callback) {
+			var baseDataUrl = 'http://proxy.finance.qq.com/ifzqgtimg/appstock/news/info/search?page=1&n=5&_var=finance_notice&type=2&_appver=1.0';
+			//var localDataUrl = localStorage.getItem('stock_dataUrl');
+			var url = baseDataUrl + "&symbol=" + key + "&_=" + (+new Date());
+			utils.ajax(url,function(res){
+				var data = res.trim().split("finance_notice=")[1];
+				callback(JSON.parse(data).data.data);
+			});
+		},
+		_loadStockNoticesData: function(key, callback) {
+			var baseDataUrl = 'http://proxy.finance.qq.com/ifzqgtimg/appstock/news/info/search?page=1&n=5&_var=finance_notice&type=0&_appver=1.0';
+			//var localDataUrl = localStorage.getItem('stock_dataUrl');
+			var url = baseDataUrl + "&symbol=" + key + "&_=" + (+new Date());
+			utils.ajax(url,function(res){
+				var data = res.trim().split("finance_notice=")[1];
+				callback(JSON.parse(data).data.data);
+			});
+		},
+		/* 推送股票提醒消息到邮箱 */
+		_sendStockRemainderEmail : function(content, email, callback) {
+			var baseDataUrl = 'http://118.24.127.19:8089/stock/remainder';
+			var url = baseDataUrl + "?stockInfo=" + encodeURIComponent(content) + "&userEmail=" + email;
+			utils.ajax(url,function(res){
+				console.log(res)
+			});
+		},
 		addStock : function(queryObj){
 			var self = this;
 			if(LocalData.isExist(queryObj.key)){
@@ -220,7 +269,7 @@ function getLinkUrl(obj){
 				self.scrollTo(queryObj.key);
 				$('#' + queryObj.key).addClass('fade');
 				$warning.show().css('opacity', 1).html('您要添加的股票已经在自选股中!');
-				
+
 				$warning.animate({
 					opacity:0
 				}, 3000, function(){
@@ -264,7 +313,7 @@ function getLinkUrl(obj){
 				}
 				queue.push(item.id);
 			})
-			
+
 			LocalData.sort(queue,function(){
 				$(".tipStock").show();
 				clearTimeout(self.timerSort);
@@ -287,6 +336,7 @@ function getLinkUrl(obj){
 			$('#zxg .zxg-list').prepend(sHtml);
 		},
 		updateStockData : function(cb){
+			var self = this;
 			var keys = LocalData.getKeys();
 			var NUM = 30;	// 每30个一组发请求
 
@@ -294,13 +344,13 @@ function getLinkUrl(obj){
 				$("#zxg .loading").hide();
 				return;
 			}
-			
+
 			for(var i = 0,len = Math.ceil(keys.length/NUM); i < len; i++){
 				var arr = keys.slice(i*NUM, (i+1)*NUM);
 
 				this._loadStockData(arr.join(","),function(res){
 					var $els = $("#zxg .zxg-list li");
-					
+					var sendContent = "";
 					$els.each(function(index,item){
 						var key = item.id;
 						var obj = res['v_' + key];
@@ -318,6 +368,45 @@ function getLinkUrl(obj){
 						item.find(".price").html(obj.price).removeClass('increase','reduce').addClass(obj.className);
 						item.find(".grow").html(obj.growRate).removeClass('increase','reduce').addClass(obj.className);
 						item.find(".hands").html(obj.hands);
+						// 推送消息提醒
+						var priceRemainder = item.find(".priceRemainder").attr('title').split("--");
+						var lowPrice = priceRemainder[0];
+						var highPrice = priceRemainder[1];
+						if(lowPrice && Number(obj.price).toFixed(2) <= Number(lowPrice).toFixed(2)) {
+							// 推送邮件消息
+							sendContent = obj.name + '('+ obj.code +') ' + "当前价格：" + obj.price + "<br/>";
+							self._loadStockNewsData(key, function(data){
+								sendContent += "<ul>"
+								data.forEach(function (item) {
+									item.url = item.url.replaceAll("%/", "/");
+									sendContent += utils.tmpl(newsList, item);
+								});
+								sendContent += "</ul>"
+
+								self._loadStockNoticesData(key, function(data){
+									sendContent += "<ul>"
+									data.forEach(function (item) {
+										item.url = item.url.replaceAll("%/", "/");
+										sendContent += utils.tmpl(newsList, item);
+									});
+									sendContent += "</ul>"
+
+									sendContent += "</br>====================</br>"
+									self._sendStockRemainderEmail(sendContent, "793514387@qq.com");
+								}, false);
+
+							}, false);
+
+							lowPrice = Number(lowPrice * 0.9).toFixed(2)
+							self._editPriceRemainder({key: key, priceRemainder: {lowPrice: lowPrice, highPrice: highPrice}}, function () {
+								var $priceRemainder = $("#"+key).find(".priceRemainder");
+								if(lowPrice || highPrice) {
+									var priceRemainder = utils.tmpl('{lowPrice}--{highPrice}', {lowPrice:lowPrice, highPrice: highPrice});
+									$priceRemainder.html('<a href=\"#\">' + priceRemainder + '</a>');
+									$priceRemainder.attr("title", priceRemainder);
+								}
+							})
+						}
 					});
 
 					cb && cb();
@@ -327,7 +416,7 @@ function getLinkUrl(obj){
 		initDom : function(){
 			var sHtml = this._renderStockStruct();
 			$('#zxg .zxg-list').html(sHtml);
-			
+
 			this.updateStockData(function(){
 				$("#zxg .loading").hide();
 			});
@@ -336,15 +425,20 @@ function getLinkUrl(obj){
 		remark : function(info,cb){
 			LocalData.edit(info,cb);
 		},
+		/* 价位设置 */
+		_editPriceRemainder : function(info,cb){
+			LocalData.editPriceRemainder(info,cb);
+		},
 		_bindEvent : function(){
 			var self = this;
+			// 请求
+
 			$("#zxg").delegate(".delete","click",function(e){
 				e.preventDefault();
 				var $el = $(this);
 				var key = $el.attr("data-key");
 				LocalData.remove(key, function(){
 					$el.closest("li").remove();
-					console.log("success");
 				});
 			}).delegate(".remark","click",function(e){
 				// 添加备注
@@ -355,9 +449,76 @@ function getLinkUrl(obj){
 				$formRemark.show().find("#remark-key").val(key)
 					.end().find(".name").html(name)
 					.end().find(".price").html(price)
-					.end().find("#remark").html($(this).attr("title"));				
+					.end().find("#remark").html($(this).attr("title"));
 				$(".mask").show();
+			}).delegate(".news", "click", function (e) {
+				var key = $(this).parents("li").attr("id");
+				var name = $(this).prevAll(".name").html();
+				var price = $(this).prevAll(".price").html();
+
+				var $formRemark = $(".news-form");
+				$formRemark.show().find("#remark-key").val(key)
+					.end().find(".name").html(name)
+					.end().find(".price").html(price)
+					.end().find("#newsList").html("")
+					.end().find("#noticesList").html("");
+				$(".mask").show();
+				self._loadStockNewsData(key, function(data){
+					var newsLists = "";
+					data.forEach(function (item) {
+						item.url = item.url.replaceAll("%/", "/");
+						newsLists += utils.tmpl(newsList, item);
+					});
+					$formRemark.find("#newsList").html(newsLists);
+				});
+				self._loadStockNoticesData(key, function(data){
+					console.log(data)
+					var newsLists = "";
+					data.forEach(function (item) {
+						item.url = item.url.replaceAll("%/", "/");
+						newsLists += utils.tmpl(newsList, item);
+					});
+					$formRemark.find("#noticesList").html(newsLists);
+				});
+
+			}).delegate(".priceRemainder", "click", function (e) {
+				var key = $(this).parents("li").attr("id");
+				var name = $(this).prevAll(".name").html();
+				var price = $(this).prevAll(".price").html();
+				var priceRemainder = $(this).attr("title").split("--");
+				var $formRemark = $(".priceRemainder-form");
+				$formRemark.show().find("#priceRemainder-key").val(key)
+					.end().find(".name").html(name)
+					.end().find(".price").html(price)
+					.end().find('#lowPrice').val(priceRemainder[0])
+					.end().find('#highPrice').val(priceRemainder[1]);
+				$(".mask").show();
+
 			});
+			$(".news-form").delegate(".close", 'click', function (e) {
+				$(e.delegateTarget).hide();
+				$(".mask").hide();
+			});
+			$(".priceRemainder-form").delegate(".close", 'click', function (e) {
+				$(e.delegateTarget).hide();
+				$(".mask").hide();
+			}).delegate(".btn","click",function(e){
+				var key = $("#priceRemainder-key").val().trim();
+				var lowPrice = $("#lowPrice").val().trim();
+				var highPrice = $("#highPrice").val().trim();
+				self._editPriceRemainder({key: key, priceRemainder: {lowPrice: lowPrice, highPrice: highPrice}}, function () {
+					$(".mask").hide();
+					$(e.delegateTarget).hide();
+					var $priceRemainder = $("#"+key).find(".priceRemainder");
+					if(lowPrice || highPrice) {
+						var priceRemainder = utils.tmpl('{lowPrice}--{highPrice}', {lowPrice:lowPrice, highPrice: highPrice});
+						$priceRemainder.html('<a href=\"#\">' + priceRemainder + '</a>');
+						$priceRemainder.attr("title", priceRemainder);
+					}
+				})
+
+			});
+
 			$(".remark-form").delegate(".close","click",function(e){
 				$(e.delegateTarget).hide();
 				$(".mask").hide();
@@ -382,7 +543,7 @@ function getLinkUrl(obj){
 			$(".zxg-list").delegate("li .name","mouseenter",function(e){
 				$el = $(this);
 				var $parent = $el.parents("li");
-				
+
 				var key = $parent.attr("id");
 				var code = key.slice(2);
 				var type = $parent.attr("data-type");
@@ -396,7 +557,7 @@ function getLinkUrl(obj){
 						style = ' style="top:-120px"';
 					}
 					var str = '<div class="trendImg"' + style + '><img src="'+imgUrl+'?'+Math.random()+'" alt="" /></div>';
-					$el.append(str);					
+					$el.append(str);
 				},500);
 			}).delegate("li .name","mouseleave",function(e){
 				clearTimeout(timerTrend);
@@ -419,7 +580,7 @@ function getLinkUrl(obj){
 				activate : function(event,ui){
 					ui.item.removeClass('hover');
 				},
-				deactivate : function(event,ui){      	
+				deactivate : function(event,ui){
 					self.sortStock();
 				}
 			});
@@ -438,7 +599,7 @@ function getLinkUrl(obj){
 		clearInterval(timer);
 		timer = setInterval(function(){
 			Stock.updateStockData();
-		},1000);		
+		},1000);
 	}
 	startRender();
 
